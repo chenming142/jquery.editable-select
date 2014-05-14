@@ -16,8 +16,7 @@
       onSelect          : false,
       items_then_scroll : 10,
       case_sensitive    : false,
-      isTrim            : false,
-      defaultVal        : ''
+      isTrim            : false
     };
     var settings = $.extend(defaults, options);
     var instance = false;
@@ -44,17 +43,17 @@
     this.init(select, settings);
   };
   EditableSelect.prototype = {
-    settings: false,
-    text: false,
-    select: false,
-    select_width: 0,
-    wrapper: false,
-    list_item_height: 20,
-    list_height: 0,
-    list_is_visible: false,
-    hide_on_blur_timeout: false,
-    bg_iframe: false,
-    current_value: '',
+    settings             : false,
+    text                 : false,
+    select               : false,
+    select_width         : 0,
+    wrapper              : false,
+    list_item_height     : 20,
+    list_height          : 0,
+    list_is_visible      : false,
+    hide_on_blur_timeout : false,
+    bg_iframe            : false,
+    current_value        : '',
     init: function(select, settings) {
       this.settings = settings;
       this.wrapper = $(document.createElement('div'));
@@ -82,18 +81,15 @@
 
       this.text.attr('id', id + "_sele");
       this.text_submit.attr('id', id);
-
       this.wrapper.attr('id', id + '_editable-select-options');
+      this.text.attr('autocomplete', 'off');
       this.text.attr('autocomplete', 'off');
       this.text.addClass('editable-select');
       this.text_submit.addClass('editable-select');
-
       this.select.attr('id', id + '_hidden_select');
       this.select.attr('name', name + '_hidden_select');
-
       this.select.after(this.text);
       this.select.after(this.text_submit);
-
       if (this.select.css('display') == 'none') {
         //this.text.css('display', 'none');
         this.text_submit.css('display', 'none');
@@ -235,7 +231,8 @@
      * populate an unordered list with them
      */
     duplicateOptions: function() {
-      var context = this,text, val, cls;
+      var context = this,
+        text, val, cls;
       var option_list = $(document.createElement('ul'));
       this.wrapper.empty();
       this.wrapper.append(option_list);
@@ -244,17 +241,13 @@
       options.each(function(i) {
         text = $(this).text();
         val = $(this).val();
-        cls = $(this).attr('class');
-        if ($(this).attr('selected')) {
-          context.text.val(context.settings.isTrim ? context.trim(text) : text);
+        cls = $(this).attr('class') || '';
+        if ($(this).attr('selected') /*|| i == 0*/ ) {
+          context.text.val(context.getText(text));
           context.text_submit.val(val);
-          context.current_value = context.settings.isTrim ? context.trim(text) : text;
+          context.current_value = context.getText(text);
         };
-        if (context.trim(text) != "") {
-          context.settings.isTrim 
-            ? context.dataList.push(context.trim(text))
-            : context.dataList.push(text)
-        }
+        if (context.trim(text) != "") context.dataList.push(context.getText(text));
         var li = $('<li value="' + val + '" class="'+ cls +'">' + text + '</li>');
         li.hide();
         if( !li.hasClass('disabled') ){
@@ -275,6 +268,13 @@
     },
     trim: function(str) {
       return typeof str == "string" ? str.replace(/^\s*|\s*$/g, "") : str;
+    },
+    getText : function(text){
+      var context = this;
+      if(context.settings.isTrim){
+        return context.trim(text);
+      }
+      return text;
     },
     /**
      * Check if the list has enough items to display a scroll
@@ -298,6 +298,109 @@
       this.wrapper.find('ul').append(li);
       this.setWidths();
       this.checkScroll();
+    },
+    /**
+     * Init the different events on the input element
+     */
+    initInputEvents: function(text) {
+      var context = this;
+      var timer = false;
+      $(document.body).click(function() {
+        context.clearSelectedListItem();
+        context.hideList();
+      });
+      text.blur(function(e) {
+        var val = context.trim(this.value);
+        var isInArr = context.in_array(val, context.dataList);
+        if (val == "") {
+          context.text_submit.val("");
+        } else if (val != "" && !isInArr) {
+          context.text_submit.val("-1");
+        }
+
+        var list_item = typeof context.settings.onSelect == 'function' && isInArr ? context.findItem(val) : null;
+
+        if (typeof context.settings.onSelect == 'function' && list_item != null) {
+          context.text.val(context.getText(list_item.text()));
+          context.text_submit.val(list_item.attr("value"));
+          context.current_value = context.text.val();
+          context.settings.onSelect.call(context, list_item, context.text_submit[0]);
+        };
+
+        context.hideList();
+
+        e.preventDefault();
+        e.stopPropagation();
+      });
+      text.focus(function(e) {
+        // Can't use the blur event to hide the list, because the blur event
+        // is fired in some browsers when you scroll the list
+        context.showList();
+        context.highlightSelected();
+        e.stopPropagation();
+      }).click(function(e) {
+        e.stopPropagation();
+        context.showList();
+        context.highlightSelected();
+      }).keydown(function(e) {
+        // Capture key events so the user can navigate through the list
+        switch (e.keyCode) {
+          // Down
+          case 40:
+            if (!context.listIsVisible()) {
+              context.showList();
+              context.highlightSelected();
+            } else {
+              e.preventDefault();
+              context.selectNewListItem('down');
+            };
+            break;
+            // Up
+          case 38:
+            e.preventDefault();
+            context.selectNewListItem('up');
+            break;
+            // Tab
+          case 9:
+            context.pickListItem(context.selectedListItem());
+            break;
+            // Esc
+          case 27:
+            e.preventDefault();
+            context.hideList();
+            return false;
+            break;
+            // Enter, prevent form submission
+          case 13:
+            e.preventDefault();
+            context.pickListItem(context.selectedListItem());
+            return false;
+        };
+      }).keyup(function(e) {
+        // Prevent lots of calls if it's a fast typer
+        if (timer !== false) {
+          clearTimeout(timer);
+          timer = false;
+        };
+        timer = setTimeout(function() {
+          // If the user types in a value, select it if it's in the list
+          if (context.text.val() != context.current_value) {
+            context.current_value = context.text.val();
+            context.highlightSelected();
+            //context.showList();
+          };
+        },200);
+
+        // if input text change,list show.yingxian add hack by 2013-09-08
+        (e.keyCode == 13) ? context.hideList() : context.showList();
+        e.stopPropagation();
+      }).keypress(function(e) {
+        if (e.keyCode == 13) {
+          // Enter, prevent form submission
+          e.preventDefault();
+          return false;
+        };
+      });
     },
     initListItemEvents: function(list_item) {
       var context = this;
@@ -335,7 +438,6 @@
       return e;
     },
     selectPrevItem: function(el) {
-
       var e = el.prev();
       if (e && e[0].display == "none") {
         return el;
@@ -368,10 +470,7 @@
      */
     pickListItem: function(list_item) {
       if (list_item.length) {
-        var text = this.settings.isTrim 
-          ? this.trim(list_item.text())
-          : list_item.text();
-        this.text.val(text);
+        this.text.val(this.getText(list_item.text()));
         this.text_submit.val(list_item.attr("value"));
         this.current_value = this.text.val();
       };
@@ -386,6 +485,7 @@
     showList: function() {
       this.positionElements();
       this.setWidths();
+      //TODO: add li's show by display:none.
       this.wrapper.find('li').show();
       this.wrapper.show();
       this.hideOtherLists();
@@ -395,15 +495,13 @@
       };
     },
     findItem: function(text1) {
-      var context = this, isDefaultVal = text1 == context.settings.defaultVal;
+      var context = this;
       var current_value = context.trim(text1);
       var list_items = context.wrapper.find('li');
       var best_candiate = false;
       var value_found = false;
       list_items.each(function() {
-        var text = isDefaultVal 
-          ? context.trim($(this).attr('value')) 
-          : context.trim($(this).text());
+        var text = context.trim($(this).text());
         if (!value_found) {
           if (!context.settings.case_sensitive) {
             text = text.toLowerCase();
@@ -445,28 +543,29 @@
       var best_candiate = false;
       var value_found = false;
       list_items.each(function() {
-          var text = $(this).text();
-          if (!value_found) {
-            if (!context.settings.case_sensitive) {
-              text = text.toLowerCase();
-            };
-            if (text == current_value) {
-              value_found = true;
-              context.clearSelectedListItem();
-              context.selectListItem($(this));
-              context.scrollToListItem($(this));
-            } else if (text.search(current_value) > -1 && !best_candiate) {
-              // Can't do return false here, since we still need to iterate over
-              // all list items to see if there is an exact match
-              best_candiate = $(this);
-            };
-
+        var text = $(this).text();
+        if (!value_found) {
+          if (!context.settings.case_sensitive) {
+            text = text.toLowerCase();
           };
-          if (context.settings.isFilter && text.search(current_value) > -1 && current_value != "") {
-            $(this).show();
-          } else if (context.settings.isFilter) {
-            $(this).hide();
-          }
+          if (text == current_value) {
+            value_found = true;
+            context.clearSelectedListItem();
+            context.selectListItem($(this));
+            context.scrollToListItem($(this));
+            //return false;
+          } else if (text.search(current_value) > -1 && !best_candiate) {
+            // Can't do return false here, since we still need to iterate over
+            // all list items to see if there is an exact match
+            best_candiate = $(this);
+          };
+
+        };
+        if (context.settings.isFilter && text.search(current_value) > -1 && current_value != "") {
+          $(this).show();
+        } else if (context.settings.isFilter) {
+          $(this).hide();
+        }
       });
 
       if (best_candiate && !value_found) {
