@@ -134,7 +134,7 @@
       options.each(function(i) {
         text = $(this).text();
         val = $(this).val();
-        cls = $(this).attr('class');
+        cls = $(this).attr('class') || '';
         if ($(this).attr('selected') /*|| i == 0*/ ) {
           context.text.val(context.getText(text));
           context.text_submit.val(val);
@@ -425,7 +425,7 @@
         return;
       };
 
-      var list_items = this.wrapper.find('li');
+      var list_items = this.wrapper.find('li[class!="disabled"]');
       if (current_value.length == 0) {
         list_items.show();
         this.selectFirstListItem();
