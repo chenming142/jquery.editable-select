@@ -125,7 +125,7 @@
      */
     duplicateOptions: function() {
       var context = this,
-        text, val;
+        text, val, cls;
       var option_list = $(document.createElement('ul'));
       this.wrapper.empty();
       this.wrapper.append(option_list);
@@ -134,15 +134,18 @@
       options.each(function(i) {
         text = $(this).text();
         val = $(this).val();
+        cls = $(this).attr('class');
         if ($(this).attr('selected') /*|| i == 0*/ ) {
           context.text.val(context.getText(text));
           context.text_submit.val(val);
           context.current_value = context.getText(text);
         };
         if (context.trim(text) != "") context.dataList.push(context.getText(text));
-        var li = $('<li value="' + val + '">' + text + '</li>');
+        var li = $('<li value="' + val + '" class="'+ cls +'">' + text + '</li>');
         li.hide();
-        context.initListItemEvents(li);
+        if( !li.hasClass('disabled') ){
+          context.initListItemEvents(li);
+        }
         option_list.append(li);
       });
       this.setWidths();

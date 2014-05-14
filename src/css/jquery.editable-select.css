@@ -34,3 +34,8 @@ input.editable-select {
     background: blue;
     color:#fff;
 }
+.editable-select-options li.disabled {
+    background: #9D9D9D;
+    cursor: auto;
+    color:#fff;
+}
