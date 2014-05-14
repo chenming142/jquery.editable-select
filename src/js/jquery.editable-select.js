@@ -377,6 +377,8 @@
     showList: function() {
       this.positionElements();
       this.setWidths();
+      //TODO: add li's show by display:none.
+      this.wrapper.find('li').show();
       this.wrapper.show();
       this.hideOtherLists();
       this.list_is_visible = true;
