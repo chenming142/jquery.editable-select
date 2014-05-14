@@ -15,7 +15,8 @@
       bg_iframe         : false,
       onSelect          : false,
       items_then_scroll : 10,
-      case_sensitive    : false
+      case_sensitive    : false,
+      isTrim            : false
     };
     var settings = $.extend(defaults, options);
     // Only do bg_iframe for browsers that need it
@@ -134,11 +135,11 @@
         text = $(this).text();
         val = $(this).val();
         if ($(this).attr('selected') /*|| i == 0*/ ) {
-          context.text.val(text);
+          context.text.val(context.getText(text));
           context.text_submit.val(val);
-          context.current_value = text;
+          context.current_value = context.getText(text);
         };
-        if (context.trim(text) != "") context.dataList.push(text);
+        if (context.trim(text) != "") context.dataList.push(context.getText(text));
         var li = $('<li value="' + val + '">' + text + '</li>');
         li.hide();
         context.initListItemEvents(li);
@@ -157,6 +158,13 @@
     },
     trim: function(str) {
       return typeof str == "string" ? str.replace(/^\s*|\s*$/g, "") : str;
+    },
+    getText : function(text){
+      var context = this;
+      if(context.settings.isTrim){
+        return context.trim(text);
+      }
+      return text;
     },
     /**
      * Check if the list has enough items to display a scroll
@@ -203,7 +211,7 @@
         var list_item = typeof context.settings.onSelect == 'function' && isInArr ? context.findItem(val) : null;
 
         if (typeof context.settings.onSelect == 'function' && list_item != null) {
-          context.text.val(list_item.text());
+          context.text.val(context.getText(list_item.text()));
           context.text_submit.val(list_item.attr("value"));
           context.current_value = context.text.val();
           context.settings.onSelect.call(context, list_item, context.text_submit[0]);
@@ -354,7 +362,7 @@
      */
     pickListItem: function(list_item) {
       if (list_item.length) {
-        this.text.val(list_item.text());
+        this.text.val(this.getText(list_item.text()));
         this.text_submit.val(list_item.attr("value"));
         this.current_value = this.text.val();
       };
